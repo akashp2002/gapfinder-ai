@@ -7,12 +7,15 @@ GapFinder is a diagnosis-first study assistant: it should identify learning gaps
 - **Dashboard:** responsive study-health overview with clearly labeled sample data.
 - **Material ingestion:** upload PDF, TXT, or Markdown; extract text, split it into source chunks, and preview citations.
 - **Demo persistence:** extracted chunks are saved in the current browser with IndexedDB. They do not sync across browsers or devices.
+- **Demo login:** judges can use the provided demo credentials to open the browser-local workspace. This is a demo gate, not production authentication.
+- **Explain a topic:** retrieve relevant source excerpts locally, then ask Groq to explain only from those cited excerpts.
+- **Syllabus and paper mapping:** extract a cited topic map from syllabus excerpts, then extract individual questions from tagged past papers and map them to the syllabus topics.
 - **Source labeling:** uploads can be marked as study material, syllabus, or past paper.
 - **RAG diagnostic quiz:** retrieve relevant chunks locally, show their citations, generate multiple-choice questions from those excerpts with Groq, and save scored attempts in IndexedDB.
 - **Gap report:** classify tested topics from each topic's latest quiz score and explain missed answers with their source sections.
 - **Adaptive revision plan:** prioritize diagnosed topics, fit sessions to the student's available time, and update the priorities after new quiz attempts.
 
-Explain-this-topic chat and account-backed persistence are not implemented yet.
+The demo login does not sync student data across devices or provide production-grade authentication.
 
 ## Run locally
 
@@ -23,7 +26,7 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The dashboard uses sample data; material upload is at `/materials`, the diagnostic quiz is at `/quiz`, the gap report is at `/report`, and the revision plan is at `/plan`.
+Open [http://localhost:3000](http://localhost:3000). The demo login is `student@demo.com` / `gapfinder2026`. Material upload is at `/materials`, syllabus and paper mapping at `/topics`, the diagnostic quiz is at `/quiz`, the source-grounded explain assistant is at `/explain`, the gap report is at `/report`, and the revision plan is at `/plan`.
 
 Useful checks:
 

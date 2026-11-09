@@ -4,6 +4,7 @@ import {
   DEFAULT_STUDY_SCHEDULE,
   type StudySchedulePreferences,
 } from "@/lib/study-plan";
+import type { StoredPaperAnalysis, StoredTopicMap } from "@/lib/topic-map";
 
 const DATABASE_NAME = "gapfinder-demo";
 const STORE_NAME = "materials";
@@ -80,8 +81,39 @@ export async function deleteMaterial(id: string): Promise<void> {
   const database = await openDatabase();
 
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).delete(id);
+    const transaction = database.transaction(
+      [STORE_NAME, SETTINGS_STORE_NAME],
+      "readwrite",
+    );
+    const materials = transaction.objectStore(STORE_NAME);
+    const settings = transaction.objectStore(SETTINGS_STORE_NAME);
+    const materialRequest = materials.get(id) as IDBRequest<StoredMaterial | undefined>;
+
+    materialRequest.onsuccess = () => {
+      const material = materialRequest.result;
+      materials.delete(id);
+      if (!material) return;
+
+      const topicMapRequest = settings.get(
+        "syllabus-topic-map",
+      ) as IDBRequest<StoredTopicMap | undefined>;
+      topicMapRequest.onsuccess = () => {
+        if (topicMapRequest.result?.syllabusSources.includes(material.name)) {
+          settings.delete("syllabus-topic-map");
+          settings.delete("past-paper-analysis");
+          return;
+        }
+
+        const paperAnalysisRequest = settings.get(
+          "past-paper-analysis",
+        ) as IDBRequest<StoredPaperAnalysis | undefined>;
+        paperAnalysisRequest.onsuccess = () => {
+          if (paperAnalysisRequest.result?.paperSources.includes(material.name)) {
+            settings.delete("past-paper-analysis");
+          }
+        };
+      };
+    };
     transaction.oncomplete = () => resolve();
     transaction.onerror = () =>
       reject(transaction.error ?? new Error("Could not delete this material."));
@@ -157,5 +189,69 @@ export async function saveStudySchedule(
       reject(transaction.error ?? new Error("Could not save your study schedule."));
     transaction.onabort = () =>
       reject(transaction.error ?? new Error("Saving your study schedule was cancelled."));
+  });
+}
+
+export async function getTopicMap(): Promise<StoredTopicMap | null> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction(SETTINGS_STORE_NAME, "readonly")
+      .objectStore(SETTINGS_STORE_NAME)
+      .get("syllabus-topic-map") as IDBRequest<StoredTopicMap | undefined>;
+
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () =>
+      reject(request.error ?? new Error("Could not load the syllabus topic map."));
+  });
+}
+
+export async function saveTopicMap(topicMap: StoredTopicMap): Promise<void> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(SETTINGS_STORE_NAME, "readwrite");
+    const settings = transaction.objectStore(SETTINGS_STORE_NAME);
+    settings.put(topicMap);
+    settings.delete("past-paper-analysis");
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () =>
+      reject(transaction.error ?? new Error("Could not save the syllabus topic map."));
+    transaction.onabort = () =>
+      reject(transaction.error ?? new Error("Saving the syllabus topic map was cancelled."));
+  });
+}
+
+export async function getPaperAnalysis(): Promise<StoredPaperAnalysis | null> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction(SETTINGS_STORE_NAME, "readonly")
+      .objectStore(SETTINGS_STORE_NAME)
+      .get("past-paper-analysis") as IDBRequest<
+      StoredPaperAnalysis | undefined
+    >;
+
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () =>
+      reject(request.error ?? new Error("Could not load past-paper analysis."));
+  });
+}
+
+export async function savePaperAnalysis(
+  analysis: StoredPaperAnalysis,
+): Promise<void> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(SETTINGS_STORE_NAME, "readwrite");
+    transaction.objectStore(SETTINGS_STORE_NAME).put(analysis);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () =>
+      reject(transaction.error ?? new Error("Could not save past-paper analysis."));
+    transaction.onabort = () =>
+      reject(transaction.error ?? new Error("Saving past-paper analysis was cancelled."));
   });
 }
