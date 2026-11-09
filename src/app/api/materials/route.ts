@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     }
 
     try {
+      await import("pdf-parse/worker");
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({
         data: bytes,
