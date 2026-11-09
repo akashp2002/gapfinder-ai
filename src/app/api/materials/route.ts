@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse";
 import { NextResponse } from "next/server";
 import {
   createSourceChunks,
@@ -67,32 +66,35 @@ export async function POST(request: Request) {
       return errorResponse("This file does not look like a valid PDF.", 415);
     }
 
-    const parser = new PDFParse({
-      data: bytes,
-      isEvalSupported: false,
-      stopAtErrors: true,
-    });
-
     try {
-      const result = await parser.getText();
-      if (result.total > MAX_PDF_PAGES) {
-        return errorResponse("PDFs must contain 120 pages or fewer.", 413);
-      }
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({
+        data: bytes,
+        isEvalSupported: false,
+        stopAtErrors: true,
+      });
 
-      segments = result.pages.map((page) => ({
-        label: `Page ${page.num}`,
-        text: page.text,
-      }));
-      characterCount = result.text.length;
-      pageCount = result.total;
+      try {
+        const result = await parser.getText();
+        if (result.total > MAX_PDF_PAGES) {
+          return errorResponse("PDFs must contain 120 pages or fewer.", 413);
+        }
+
+        segments = result.pages.map((page) => ({
+          label: `Page ${page.num}`,
+          text: page.text,
+        }));
+        characterCount = result.text.length;
+        pageCount = result.total;
+      } finally {
+        await parser.destroy();
+      }
     } catch (error) {
       console.error("PDF text extraction failed.", error);
       return errorResponse(
         "We couldn't read this PDF. Try another file or export it as a text-based PDF.",
         422,
       );
-    } finally {
-      await parser.destroy();
     }
   } else {
     let text: string;
